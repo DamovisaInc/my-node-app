@@ -1,2 +1,2 @@
-# my-node-app
-Sample node application
+# My Node Application
+Soon to be an amazing application written on Node
