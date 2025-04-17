@@ -1,0 +1,179 @@
+name: Issue Creative Ideation
+
+# This workflow generates creative ideas to add to a new issue
+
+on:
+  issues: 
+    types: opened
+
+# Required permissions for the workflow
+permissions:
+  issues: write   # For reading issue data and posting comments
+  models: read    # For accessing GitHub's AI models
+  contents: read  # For repository access
+
+jobs:
+  generate-summary:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Step 1: Add a reaction to show the request is being processed
+    - name: Add reaction to indicate processing
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Add rocket reaction to indicate processing
+          await github.rest.reactions.createForIssue({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            content: 'rocket'
+          });
+    
+    # Step 2: Checkout the repository
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    # Step 3: Gather all issue data
+    - name: Fetch issue data
+      id: issue-data
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issueNumber = context.issue.number;
+          
+          // Get issue details
+          const issue = await github.rest.issues.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: issueNumber
+          });
+          
+          // Combine issue body into input for model
+          const issueData = {
+            title: issue.data.title,
+            body: issue.data.body || '(No description provided)'
+          };
+          
+          // Write the data to a file
+          const fs = require('fs');
+          fs.writeFileSync('issue_data.txt', 
+            `Issue Title: ${issueData.title}\n\n` +
+            `Issue Description:\n${issueData.body}`
+          );
+          
+          // Store the issue number for later use
+          core.setOutput('issue-number', issueNumber);
+
+    
+    # Step 4: Generate the summary using the AI model
+    - name: Generate ideas
+      id: generate-ideas
+      run: |
+        # Read the issue content
+        ISSUE_CONTENT=$(cat issue_data.txt)
+        
+        
+        # =====================================================================
+        # CUSTOMIZATION POINT: Modify the prompt to change the format
+        # =====================================================================
+        # The prompt below is used to generate the ideas.
+        # You can modify the instructions, format, or structure as needed.
+        # The placeholders like <PLACEHOLDER: output expectation> will be replaced by the AI.
+        # =====================================================================
+        
+        cat > prompt_content.txt << EOT
+        Please provide some creative ideas to add to the following GitHub issue. These should be suggestions for additional changes as well as improvements:
+
+        $ISSUE_CONTENT
+
+        Make sure that the summary follows this markdown structure verbatim and replace the placeholders <PLACEHOLDER: output expectation> with your generated data:
+
+        Make sure to include this warning at the top of the message:
+        > [!IMPORTANT]
+        > Copilot generated ideation. Might contain incorrect or strange suggestions.
+
+        ## Suggestions for additional changes
+        <PLACEHOLDER: a bullet list of up to 5 creative ideas for additional changes>
+
+        ## Improvements to the description
+        <PLACEHOLDER: a bullet list of up to 3 possible improvements to this issue>
+        EOT
+        
+        
+        # Properly escape the content for JSON
+        SANITIZED_PROMPT="$(jq -Rs . prompt_content.txt)"
+
+        # =====================================================================
+        # CUSTOMIZATION POINT: Model selection and parameters
+        # =====================================================================
+        # You can change the model or add parameters like temperature, max_tokens, etc.
+        # Available models include: openai/gpt-4o, openai/gpt-4-turbo, etc.
+        # =====================================================================
+        
+        cat > model_input.json << EOF
+        {
+          "messages": [
+              {
+                "role": "user",
+                "content": $SANITIZED_PROMPT
+              }
+          ],
+          "model": "openai/gpt-4o"
+        }
+        EOF
+        
+        # Call the GitHub Models API
+        SUMMARY=$(curl -s "https://models.github.ai/inference/chat/completions" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -d @model_input.json)
+        
+        # Check for errors in the API response
+        if echo "$SUMMARY" | jq -e '.error' > /dev/null; then
+          echo "API Error: $(echo "$SUMMARY" | jq -r '.error.message')"
+          exit 1
+        fi
+        
+        # Extract the content from the response
+        CONTENT=$(echo "$SUMMARY" | jq -r '.choices[0].message.content')
+        
+        # Save the response to file for artifact upload
+        echo "$CONTENT" > model_response.md
+        
+        # Save the content to an output variable, escaping newlines for GitHub Actions
+        echo "summary<<EOF" >> $GITHUB_OUTPUT
+        echo "$CONTENT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    # Step 5: Post the generated suggestions as a comment on the issue
+    - name: Post summary as comment
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const summary = `${process.env.SUMMARY}`;
+
+          // CUSTOMIZATION: You can add additional processing to the summary here if needed
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{ steps.issue-data.outputs.issue-number }},
+            body: summary
+          });
+      env:
+        SUMMARY: ${{ steps.generate-ideas.outputs.summary }}
+        
+    # Step 9: Handle failure cases by adding a reaction
+    - name: Add failure reaction if job fails
+      if: ${{ failure() }}
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Add -1 reaction to indicate failure
+          await github.rest.reactions.createForIssueComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            comment_id: context.payload.comment.id,
+            content: '-1'
+          });
