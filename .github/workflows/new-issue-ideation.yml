@@ -27,7 +27,7 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             issue_number: context.issue.number,
-            content: 'rocket'
+            content: 'eyes'
           });
     
     # Step 2: Checkout the repository
@@ -97,11 +97,16 @@ jobs:
         ## Improvements to the description
         <PLACEHOLDER: a bullet list of up to 3 possible improvements to this issue>
         EOT
+
+        # Get the issue content
+        cat > issue_content.txt << EOT
+        $ISSUE_CONTENT
+        EOT
         
         
         # Properly escape the content for JSON
         SANITIZED_PROMPT="$(jq -Rs . prompt_content.txt)"
-        SANITIZED_CONTENT="$(jq -Rs . $ISSUE_CONTENT)"
+        SANITIZED_CONTENT="$(jq -Rs . issue_content.txt)"
 
         echo "\n\nPrompt:\n\n"
         echo $SANITIZED_PROMPT
