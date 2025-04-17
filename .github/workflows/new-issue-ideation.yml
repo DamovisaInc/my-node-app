@@ -104,6 +104,8 @@ jobs:
         # Properly escape the content for JSON
         SANITIZED_PROMPT="$(jq -Rs . prompt_content.txt)"
 
+        echo $SANITIZED_PROMPT
+
         # =====================================================================
         # CUSTOMIZATION POINT: Model selection and parameters
         # =====================================================================
@@ -147,7 +149,7 @@ jobs:
         echo "EOF" >> $GITHUB_OUTPUT
 
     # Step 5: Post the generated suggestions as a comment on the issue
-    - name: Post summary as comment
+    - name: Post ideas as comment
       uses: actions/github-script@v7
       with:
         script: |
@@ -164,16 +166,16 @@ jobs:
       env:
         SUMMARY: ${{ steps.generate-ideas.outputs.summary }}
         
-    # Step 9: Handle failure cases by adding a reaction
+    # Step 6: Handle failure cases by adding a reaction
     - name: Add failure reaction if job fails
       if: ${{ failure() }}
       uses: actions/github-script@v7
       with:
         script: |
           // Add -1 reaction to indicate failure
-          await github.rest.reactions.createForIssueComment({
+          await github.rest.reactions.createforIssue({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            comment_id: context.payload.comment.id,
+            issue_number: context.issue.number,
             content: '-1'
           });
