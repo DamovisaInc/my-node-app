@@ -83,9 +83,7 @@ jobs:
         # =====================================================================
         
         cat > prompt_content.txt << EOT
-        Please provide some creative ideas to add to the following GitHub issue. These should be suggestions for additional changes as well as improvements:
-
-        $ISSUE_CONTENT
+        Please provide some creative ideas to add to the user's GitHub issue. These should be suggestions for additional changes as well as improvements:
 
         Make sure that the summary follows this markdown structure verbatim and replace the placeholders <PLACEHOLDER: output expectation> with your generated data:
 
@@ -103,8 +101,12 @@ jobs:
         
         # Properly escape the content for JSON
         SANITIZED_PROMPT="$(jq -Rs . prompt_content.txt)"
+        SANITIZED_CONTENT="$(jq -Rs . $ISSUE_CONTENT)"
 
+        echo "\n\nPrompt:\n\n"
         echo $SANITIZED_PROMPT
+        echo "\n\nContent:\n"
+        echo $ISSUE_CONTENT
 
         # =====================================================================
         # CUSTOMIZATION POINT: Model selection and parameters
@@ -117,11 +119,17 @@ jobs:
         {
           "messages": [
               {
-                "role": "user",
-                "content": $SANITIZED_PROMPT
+                  "role": "system",
+                  "content": $SANITIZED_PROMPT
+              },
+              {
+                  "role": "user",
+                  "content": $SANITIZED_CONTENT
               }
           ],
-          "model": "openai/gpt-4o"
+          "temperature": 1.0,
+          "top_p": 1.0,
+          "model": "openai/gpt-4.1"
         }
         EOF
         
