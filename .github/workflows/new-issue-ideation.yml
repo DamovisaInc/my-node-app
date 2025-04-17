@@ -70,9 +70,6 @@ jobs:
     - name: Generate ideas
       id: generate-ideas
       run: |
-        # Read the issue content
-        ISSUE_CONTENT=$(cat issue_data.txt)
-        
         
         # =====================================================================
         # CUSTOMIZATION POINT: Modify the prompt to change the format
@@ -97,16 +94,11 @@ jobs:
         ## Improvements to the description
         <PLACEHOLDER: a bullet list of up to 3 possible improvements to this issue>
         EOT
-
-        # Get the issue content
-        cat > issue_content.txt << EOT
-        $ISSUE_CONTENT
-        EOT
         
         
         # Properly escape the content for JSON
         SANITIZED_PROMPT="$(jq -Rs . prompt_content.txt)"
-        SANITIZED_CONTENT="$(jq -Rs . issue_content.txt)"
+        SANITIZED_CONTENT="$(jq -Rs . issue_data.txt)"
 
         echo "\n\nPrompt:\n\n"
         echo $SANITIZED_PROMPT
@@ -125,11 +117,11 @@ jobs:
           "messages": [
               {
                   "role": "system",
-                  "content": "$SANITIZED_PROMPT"
+                  "content": $SANITIZED_PROMPT
               },
               {
                   "role": "user",
-                  "content": "$SANITIZED_CONTENT"
+                  "content": $SANITIZED_CONTENT
               }
           ],
           "temperature": 1.0,
