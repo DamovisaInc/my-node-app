@@ -86,7 +86,7 @@ jobs:
 
         Make sure to include this warning at the top of the message:
         > [!IMPORTANT]
-        > Copilot generated ideation. Might contain incorrect or strange suggestions.
+        > AI-generated ideation. Might contain incorrect or strange suggestions.
 
         ## Suggestions for additional changes
         <PLACEHOLDER: a bullet list of up to 5 creative ideas for additional changes>
