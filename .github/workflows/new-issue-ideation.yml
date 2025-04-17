@@ -120,11 +120,11 @@ jobs:
           "messages": [
               {
                   "role": "system",
-                  "content": $SANITIZED_PROMPT
+                  "content": "$SANITIZED_PROMPT"
               },
               {
                   "role": "user",
-                  "content": $SANITIZED_CONTENT
+                  "content": "$SANITIZED_CONTENT"
               }
           ],
           "temperature": 1.0,
